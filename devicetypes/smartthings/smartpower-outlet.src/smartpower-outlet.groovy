@@ -14,6 +14,14 @@
  *
  *	Author: SmartThings
  *	Date: 2015-08-23
+ *
+ *  Modified: Terry R. Gauchat, @CosmicPuppy
+ *  Date: 2015-12-18
+ *  	- Attempting to mutate this for single switch window blind control.
+ * 	 	- Overwrite on/off to mean up/down (i.e., blinds open/closed).
+ *		- NB: Using "on" for blinds up/open because on means let there be light!
+ *
+ *  Version: 0.1.0-Beta+001
  */
 metadata {
 	// Automatically generated. Make future change here.
@@ -27,6 +35,9 @@ metadata {
 
 		// indicates that device keeps track of heartbeat (in state.heartbeat)
 		attribute "heartbeat", "string"
+
+		// Internal attribute for holding actual status of power outlet (on,off).
+		attribute "outlet", "string"
 
 		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0B04,0B05", outClusters: "0019", manufacturer: "CentraLite",  model: "3200", deviceJoinName: "Outlet"
 		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0B04,0B05", outClusters: "0019", manufacturer: "CentraLite",  model: "3200-Sgb", deviceJoinName: "Outlet"
@@ -106,6 +117,11 @@ def parse(String description) {
 			*/
 		}
 		else {
+        	log.trace "Unprocessed type: finalResult.type, value: ${finalResult.type}, ${finalResult.value}"
+            if (finalResult?.type == "switch") {
+            	finalResult.type = "outlet"
+            }
+            log.trace "Processed type: finalResult.type, value: ${finalResult.type}, ${finalResult.value}"
 			sendEvent(name: finalResult.type, value: finalResult.value)
 		}
 	}
@@ -115,11 +131,60 @@ def parse(String description) {
 	}
 }
 
+
+/* New definition of on/off = up/down = open/closed Window Blinds */
+/* Since we don't know the starting State, for sanity assume NULL = off = down = closed. */
+def on() {
+    if( state?.blindsPosition == NULL ) {
+    	state.blindsPosition = "down"
+    }
+	/* If blinds not already up/on, then flip outlet off and back on. */
+	if( state?.blindsPosition != "up" ) {
+		log.trace "On() Requested: Blinds not up, so flipping outlet off and on."
+		delayBetween([
+        	outletOff(),
+            sendEvent(name: "outlet", value: "turning off", isStateChange: true ),
+        	outletOn(),
+            sendEvent(name: "outlet", value: "turning on", isStateChange: true )
+    	], 200)
+        state.blindsPosition = "up"
+        sendEvent(name: "switch", value: "on", isStateChange: true, descriptionText: "Opening Blinds Up to On");
+	} else {
+    	/* Assume that the blinds are already up. */
+        log.trace "On() Requested: Blinds are already up-on-open. Doing nothing."
+    	//state.blindsPosition = "up"
+    }
+}
+
+/* This time we _also_ treat NULL as if already off = down = closed. */
 def off() {
+	/* If blinds already down down/off, then flip outlet off and back on. */
+    if( state?.blindsPosition == NULL ) {
+    	state.blindsPosition = "down"
+    }
+    if( state?.blindsPosition != "down" ) {
+    	log.trace "Off() Requested: Blinds not down, so flipping outlet off and on."
+    	delayBetween([
+        	outletOff(),
+            sendEvent(name: "outlet", value: "turning off", isStateChange: true ),
+        	outletOn(),
+            sendEvent(name: "outlet", value: "turning on", isStateChange: true )
+    	], 200)
+        state.blindsPosition = "down"
+        sendEvent(name: "switch", value: "off", isStateChange: true, descriptionText: "Lowering Blinds Down to Off");
+	} else {
+    	/* Assume that the blinds are already down. */
+        log.trace "On() Requested: Blinds are already down-off-closed or NULL. Doing nothing."
+    	//state.blindsPosition = "down"
+	}
+}
+
+
+def outletOff() {
 	zigbee.off()
 }
 
-def on() {
+def outletOn() {
 	zigbee.on()
 }
 
