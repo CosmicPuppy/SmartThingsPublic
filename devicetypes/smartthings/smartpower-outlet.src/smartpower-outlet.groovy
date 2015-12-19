@@ -1,3 +1,4 @@
+def myVersion() { "v0.1.2-Alpha+003" }
 /**
  *  Copyright 2015 SmartThings
  *
@@ -21,11 +22,11 @@
  * 	 	- Overwrite on/off to mean up/down (i.e., blinds open/closed).
  *		- NB: Using "on" for blinds up/open because on means let there be light!
  *
- *  Version: 0.1.0-Beta+001
+ *  Version: 0.1.2-Alpha+003
  */
 metadata {
 	// Automatically generated. Make future change here.
-	definition (name: "SmartPower Outlet", namespace: "smartthings", author: "SmartThings") {
+	definition (name: "Custom Smart Blinds", namespace: "cosmicpuppy", author: "Terry Gauchat") {
 		capability "Actuator"
 		capability "Switch"
 		capability "Power Meter"
@@ -38,6 +39,9 @@ metadata {
 
 		// Internal attribute for holding actual status of power outlet (on,off).
 		attribute "outlet", "string"
+        
+        // Temporary attribute to track version number during development.
+        attribute "version", "string"
 
 		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0B04,0B05", outClusters: "0019", manufacturer: "CentraLite",  model: "3200", deviceJoinName: "Outlet"
 		fingerprint profileId: "0104", inClusters: "0000,0003,0004,0005,0006,0B04,0B05", outClusters: "0019", manufacturer: "CentraLite",  model: "3200-Sgb", deviceJoinName: "Outlet"
@@ -83,8 +87,16 @@ metadata {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
+		valueTile("outlet", "device.outlet", decoration: "flat", width: 2, height: 2) {
+			state "outlet", label:'Outlet State: ${currentValue}'
+		}
+
+		valueTile("version", "device.version", decoration: "flat", width: 2, height: 2) {
+			state "version", label:'Version: ${currentValue}'
+		}
+
 		main "switch"
-		details(["switch","refresh"])
+		details(["switch","refresh","outlet","version"])
 	}
 }
 
@@ -146,7 +158,7 @@ def on() {
             sendEvent(name: "outlet", value: "turning off", isStateChange: true ),
         	outletOn(),
             sendEvent(name: "outlet", value: "turning on", isStateChange: true )
-    	], 200)
+    	], 1200)
         state.blindsPosition = "up"
         sendEvent(name: "switch", value: "on", isStateChange: true, descriptionText: "Opening Blinds Up to On");
 	} else {
@@ -154,6 +166,7 @@ def on() {
         log.trace "On() Requested: Blinds are already up-on-open. Doing nothing."
     	//state.blindsPosition = "up"
     }
+    sendEvent(name: "version", value: myVersion(), isStateChange: true);
 }
 
 /* This time we _also_ treat NULL as if already off = down = closed. */
@@ -169,7 +182,7 @@ def off() {
             sendEvent(name: "outlet", value: "turning off", isStateChange: true ),
         	outletOn(),
             sendEvent(name: "outlet", value: "turning on", isStateChange: true )
-    	], 200)
+    	], 1200)
         state.blindsPosition = "down"
         sendEvent(name: "switch", value: "off", isStateChange: true, descriptionText: "Lowering Blinds Down to Off");
 	} else {
@@ -177,6 +190,7 @@ def off() {
         log.trace "On() Requested: Blinds are already down-off-closed or NULL. Doing nothing."
     	//state.blindsPosition = "down"
 	}
+    sendEvent(name: "version", value: myVersion(), isStateChange: true);
 }
 
 
